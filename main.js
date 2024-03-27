@@ -3,6 +3,8 @@ import { setupCounter } from './counter.js'
 
 import * as THREE from 'three'
 
+import { GUI } from "dat.gui"
+
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
@@ -30,6 +32,8 @@ document.querySelector('#app').innerHTML = /*html*/`
 `
 
 setupCounter(document.querySelector('#counter'))
+
+
 
 var currentModelPath = '/soucoupe_V2.glb'
 var newModelPath = '/soucoupe_V2.glb'
@@ -61,6 +65,7 @@ canvas.style.cursor = 'none' // hide the cursor
 document.body.appendChild(canvas)
 const scene = new THREE.Scene()
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
+camera.position.z = 2
 
 const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true })
 renderer.setSize(100, 100)
@@ -104,7 +109,17 @@ const light = new THREE.DirectionalLight(0xffffff, 3)
 light.position.set(0, 0, 1)
 scene.add(light)
 
-camera.position.z = 2
+
+// gui inside html
+const gui = new GUI()
+gui.domElement.id = 'gui'
+
+//gui model
+const cameraFolder = gui.addFolder('Camera')
+cameraFolder.add(camera.position, 'z', 0, 10).name('Zoom').step(0.01)
+cameraFolder.add(camera.position, 'y', -10, 10).name('Height').step(0.01)
+cameraFolder.add(camera.position, 'x', -10, 10).name('Horizontal').step(0.01)
+cameraFolder.open()
 
 let mousePos = { x: 0, y: 0 }
 function animate() {
@@ -124,8 +139,8 @@ function animate() {
 
   model.rotation.y += 0.01
 
-  model.rotation.x = (mousePos.y - (window.innerHeight / 2) + 800) * 0.0005
-  model.rotation.z = (mousePos.x + (window.innerWidth / 2)) * 0.0002
+  model.rotation.x = (mousePos.y - (window.innerHeight / 2) + 500) * 0.0005
+  // model.rotation.z = (mousePos.x + (window.innerWidth / 2)) * 0.0002
 
   bloomComposer.render()
 
