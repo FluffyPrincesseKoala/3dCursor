@@ -35,8 +35,8 @@ setupCounter(document.querySelector('#counter'))
 
 
 
-var currentModelPath = '/soucoupe_V2.glb'
-var newModelPath = '/soucoupe_V2.glb'
+var currentModelPath = '/soucoupe V5.glb'
+var newModelPath = '/soucoupe V5.glb'
 
 const fileInput = document.getElementById('fileInput');
 
@@ -105,10 +105,14 @@ const outputPass = new OutputPass()
 bloomComposer.addPass(outputPass)
 
 // add a light
-const light = new THREE.DirectionalLight(0xffffff, 3)
+const light = new THREE.AmbientLight(0xffffff, 2.5)
 light.position.set(0, 0, 1)
 scene.add(light)
 
+// add a light2
+const light2 = new THREE.Light(0xffffff, 40)
+light2.position.set(0, 0, 10)
+scene.add(light2)
 
 // gui inside html
 const gui = new GUI()
