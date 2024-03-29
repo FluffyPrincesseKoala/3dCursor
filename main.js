@@ -66,9 +66,13 @@ document.body.appendChild(canvas)
 const scene = new THREE.Scene()
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
 camera.position.z = 2
+camera.fov = 50
+camera.aspect = 16 / 11
+camera.updateProjectionMatrix()
 
 const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true })
-renderer.setSize(100, 100)
+renderer.setSize(80, 80)
+// renderer.setSize(200, 200)
 
 // import a 3D model
 const loader = new GLTFLoader()
@@ -84,34 +88,30 @@ if (currentModelPath) {
     model.scale.set(.1, .1, .1)
     model.position.set(0, 0, 0)
     model.rotation.set(0, 0, 0)
+    // log model camera aspect ratio and fov
+    console.log(model)
+    // give a color to each sphere
+    model.traverse((child) => {
+      if (child.isMesh) {
+        console.log('child', child)
+        if (child.name === 'Sphere017_2') { // top balls
+          const top = child.material
+          top.emissive = new THREE.Color(0xffffff)
+          top.emissiveIntensity = 0.5
+        }
+      }
+    })
   })
 }
 
-// add bloom effect
-const renderScene = new RenderPass(scene, camera)
-
-const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight)
-)
-bloomPass.threshold = 1.0
-bloomPass.strength = 1.5
-bloomPass.radius = 0.1
-
-const bloomComposer = new EffectComposer(renderer)
-bloomComposer.addPass(renderScene)
-bloomComposer.addPass(bloomPass)
-
-const outputPass = new OutputPass()
-bloomComposer.addPass(outputPass)
-
 // add a light
-const light = new THREE.AmbientLight(0xffffff, 2.5)
+const light = new THREE.AmbientLight(0xffffff, 0.5)
 light.position.set(0, 0, 1)
 scene.add(light)
 
 // add a light2
-const light2 = new THREE.Light(0xffffff, 40)
-light2.position.set(0, 0, 10)
+const light2 = new THREE.SpotLight(0xffffff, 25, 10, Math.PI, 1, 1)
+light2.position.set(0, 1, 5)
 scene.add(light2)
 
 // gui inside html
@@ -123,11 +123,24 @@ const cameraFolder = gui.addFolder('Camera')
 cameraFolder.add(camera.position, 'z', 0, 10).name('Zoom').step(0.01)
 cameraFolder.add(camera.position, 'y', -10, 10).name('Height').step(0.01)
 cameraFolder.add(camera.position, 'x', -10, 10).name('Horizontal').step(0.01)
+// fov
+cameraFolder.add(camera, 'fov', 0, 180).name('Field of View').step(0.01).onFinishChange(() => {
+  camera.updateProjectionMatrix()
+})
 cameraFolder.open()
 
 let mousePos = { x: 0, y: 0 }
+
+let lastMousePos = { x: 0, y: 0 }
+// get time
+const clock = new THREE.Clock()
 function animate() {
   requestAnimationFrame(animate)
+  // update the mouse position if one second has passed
+  if (clock.getElapsedTime() > 0.1) {
+    clock.start()
+    lastMousePos = { x: mousePos.x, y: mousePos.y }
+  }
 
   if (newModelPath !== currentModelPath) {
     currentModelPath = newModelPath
@@ -141,12 +154,48 @@ function animate() {
     })
   }
 
-  model.rotation.y += 0.01
+  if (lastMousePos.x !== mousePos.x || lastMousePos.y !== mousePos.y) {
+    // get mouse direction
+    const direction = new THREE.Vector2(
+      mousePos.x - lastMousePos.x,
+      mousePos.y - lastMousePos.y
+    )
+    // make velocity effect using z axis as acceleration and x and y as direction
+    if (direction.x > 0 && model.rotation.z > -0.1) {
+      model.rotation.z -= Math.sin(direction.x * 0.001)
+    }
+    if (direction.x < 0 && model.rotation.z < 0.1) {
+      model.rotation.z += -Math.sin(direction.x * 0.001)
+    }
+    if (model.rotation.z > -0.0001 && model.rotation.z < 0.0001) {
+      model.rotation.z = 0
+    } else if (model.rotation.z > 0.1) {
+      model.rotation.z -= 0.01
+    } else if (model.rotation.z < -0.1) {
+      model.rotation.z += 0.01
+    }
+  }
+  if (model.rotation.z > -0.0001 && model.rotation.z < 0.0001) {
+    model.rotation.z = 0
+  } else if (model.rotation.z > 0) {
+    model.rotation.z -= 0.01
+  } else if (model.rotation.z < 0) {
+    model.rotation.z += 0.01
+  }
 
-  model.rotation.x = (mousePos.y - (window.innerHeight / 2) + 500) * 0.0005
-  // model.rotation.z = (mousePos.x + (window.innerWidth / 2)) * 0.0002
+  // model.rotation.y += 0.01
+  model.traverse((child) => {
+    if (child.isMesh) {
+      // child.material.emissive = new THREE.Color(0x00ff00)
+      child.rotateY(0.01)
+    }
+  })
 
-  bloomComposer.render()
+  model.rotation.x = (mousePos.y - (window.innerHeight / 2) + 500) * 0.00025
+
+  // move light2 x from mouse position from -3 to 3
+  light2.position.x = -(mousePos.x - (window.innerWidth / 2)) * 0.01
+  light2.position.y = (mousePos.y - (window.innerHeight / 2)) * 0.01
 
   renderer.render(scene, camera)
 }
@@ -155,10 +204,18 @@ animate()
 
 // make the canvas follow the mouse
 document.addEventListener('mousemove', (event) => {
-  canvas.style.left = `${event.clientX - 35}px`
-  canvas.style.top = `${event.clientY - 35}px`
-  mousePos = { x: event.clientX, y: event.clientY }
-})
+  let x = event.clientX - 35;
+  let y = event.clientY - 35;
+
+  // Prevent the canvas from going beyond the viewport
+  x = Math.min(x, window.innerWidth - (canvas.offsetWidth));
+  y = Math.min(y, window.innerHeight - canvas.offsetHeight);
+
+  canvas.style.left = `${x}px`;
+  canvas.style.top = `${y}px`;
+
+  mousePos = { x: event.clientX, y: event.clientY };
+});
 
 
 // Add this CSS to your styles to prevent cursor change on all elements
