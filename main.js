@@ -113,6 +113,7 @@ scene.add(light)
 const light2 = new THREE.SpotLight(0xffffff, 25, 10, Math.PI, 1, 1)
 light2.position.set(0, 1, 5)
 scene.add(light2)
+const lightHelper2 = new THREE.SpotLightHelper(light2)
 
 // gui inside html
 const gui = new GUI()
